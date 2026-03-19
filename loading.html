@@ -13,9 +13,9 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #4A47F6;
+            background-color: #E3E8FF; /* 默认浅色背景 */
             background-size: 200% 100%;
-            background-image: linear-gradient(to right, #4A47F6 50%, #4A47F6 50%);
+            background-image: linear-gradient(to right, #E3E8FF 50%, #E3E8FF 50%);
             background-position: 0% 0%;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden;
@@ -45,6 +45,7 @@
             box-sizing: border-box;
             z-index: 10; /* 放在头像上面 */
             pointer-events: none;
+            box-shadow: 0 0 15px rgba(0,0,0,0.05); /* 在浅色背景上增加对比度 */
         }
 
         /* 单个头像容器 */
@@ -125,7 +126,7 @@
         /* 底部文字样式 */
         .text-content {
             text-align: center;
-            color: white;
+            color: #333; /* 改为深色文字适应浅色背景 */
             z-index: 20;
             height: 60px; /* 固定高度防止文字变化时跳动 */
         }
@@ -178,35 +179,35 @@
     </div>
 
     <script>
-        // 定义 5 种头像的本地图片数据、背景颜色和专属文案
+        // 定义 5 种头像的本地图片数据、背景颜色和专属文案（修改为浅色系）
         const avatarData = [
             {
                 type: 0,
-                bg: '#4A47F6', // 蓝色背景
+                bg: '#E3E8FF', // 浅蓝紫
                 message: '黄小西正在思考中',
                 content: '<img class="type-0" src="downloaded-imag1e.png" alt="avatar 1">'
             },
             {
                 type: 1,
-                bg: '#00B894', // 绿青色背景
+                bg: '#E0F4EE', // 浅绿
                 message: '旅行记录官正在翻找合适的照片',
                 content: '<img class="type-1" src="downloaded-image (1).png" alt="avatar 2">'
             },
             {
                 type: 2,
-                bg: '#8E44AD', // 紫色背景
+                bg: '#F2E8F7', // 浅紫
                 message: '旅居管家正在帮您畅想',
                 content: '<img class="type-2" src="downloaded-image (2).png" alt="avatar 3">'
             },
             {
                 type: 3,
-                bg: '#E17055', // 珊瑚红背景
+                bg: '#FDECE8', // 浅珊瑚红
                 message: '旅行规划小助手正在查资料',
                 content: '<img class="type-3" src="downloaded-image (3).png" alt="avatar 4">'
             },
             {
                 type: 4,
-                bg: '#F39C12', // 橙黄色背景
+                bg: '#FDF2E3', // 浅橙黄
                 message: '订购助手正在帮您查看最优惠的商品',
                 content: '<img class="type-4" src="downloaded-image (4).png" alt="avatar 5">'
             }

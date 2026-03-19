@@ -148,9 +148,9 @@
         .agent-animation-area {
             position: relative;
             height: 120px;
-            background-color: #4A47F6;
+            background-color: #E3E8FF; /* 默认浅色背景 */
             background-size: 200% 100%;
-            background-image: linear-gradient(to right, #4A47F6 50%, #4A47F6 50%);
+            background-image: linear-gradient(to right, #E3E8FF 50%, #E3E8FF 50%);
             background-position: 0% 0%;
             display: flex;
             justify-content: center;
@@ -172,6 +172,7 @@
             z-index: 10;
             pointer-events: none;
             transition: opacity 0.5s, transform 0.5s;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05); /* 加一点极浅的阴影让白环在浅色背景更突出 */
         }
 
         /* 缩小版头像容器 */
@@ -205,7 +206,7 @@
             bottom: 12px; /* 移到下方 */
             top: auto;
             transform: translateX(-50%);
-            color: white;
+            color: #333; /* 浅色背景上改用深色文字 */
             font-size: 0.85rem; /* 稍微缩小字号适应空间 */
             font-weight: 500;
             text-align: center;
@@ -213,7 +214,7 @@
             z-index: 15;
             pointer-events: none;
             width: 90%;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            text-shadow: 0 1px 2px rgba(255,255,255,0.8); /* 调整阴影为浅色泛光，增加可读性 */
             transition: opacity 0.4s ease;
         }
 
@@ -226,7 +227,7 @@
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
+            background: rgba(74, 71, 246, 0.1); /* 改为淡蓝色涟漪 */
             z-index: 5;
             opacity: 0;
             pointer-events: none;
@@ -235,8 +236,8 @@
             animation: radar-ripple 1.5s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         @keyframes radar-ripple {
-            0% { width: 50px; height: 50px; opacity: 1; border: 2px solid white; }
-            100% { width: 150px; height: 150px; opacity: 0; border: 2px solid white; }
+            0% { width: 50px; height: 50px; opacity: 1; border: 2px solid rgba(74, 71, 246, 0.3); } /* 涟漪边框颜色 */
+            100% { width: 150px; height: 150px; opacity: 0; border: 2px solid rgba(74, 71, 246, 0.1); }
         }
 
         /* 下方文字区域 */
@@ -389,13 +390,13 @@
     </template>
 
     <script>
-        // 头像数据源（保留之前的背景色和文案，更新了图片和名字位置）
+        // 头像数据源（修改为浅色系背景）
         const avatarData = [
-            { type: 0, bg: '#4A47F6', message: '黄小西正在思考中', src: 'downloaded-imag1e.png' },
-            { type: 1, bg: '#00B894', message: '旅行记录官正在翻找合适的照片', src: 'downloaded-image (1).png' },
-            { type: 2, bg: '#8E44AD', message: '旅居管家正在帮您畅想', src: 'downloaded-image (2).png' },
-            { type: 3, bg: '#E17055', message: '旅行规划小助手正在查资料', src: 'downloaded-image (3).png' },
-            { type: 4, bg: '#F39C12', message: '订购助手正在帮您查看最优惠的商品', src: 'downloaded-image (4).png' }
+            { type: 0, bg: '#E3E8FF', message: '黄小西正在思考中', src: 'downloaded-imag1e.png' }, // 浅蓝紫
+            { type: 1, bg: '#E0F4EE', message: '旅行记录官正在翻找合适的照片', src: 'downloaded-image (1).png' }, // 浅绿
+            { type: 2, bg: '#F2E8F7', message: '旅居管家正在帮您畅想', src: 'downloaded-image (2).png' }, // 浅紫
+            { type: 3, bg: '#FDECE8', message: '旅行规划小助手正在查资料', src: 'downloaded-image (3).png' }, // 浅珊瑚红
+            { type: 4, bg: '#FDF2E3', message: '订购助手正在帮您查看最优惠的商品', src: 'downloaded-image (4).png' }  // 浅橙黄
         ];
         const items = [...avatarData, ...avatarData]; // 翻倍实现无缝循环
 

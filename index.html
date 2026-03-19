@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行程鱼骨图</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --line-color: #bdc3c7;
+            --node-bg: #ffffff;
+            --text-color: #34495e;
+            --day-border-1: #3498db;
+            --day-border-2: #e67e22;
+            --day-border-3: #2ecc71;
+            --day-border-4: #9b59b6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        
+        /* Toolbar */
+        .toolbar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .toolbar-btn {
+            background: #f1f2f6;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--primary-color);
+            transition: all 0.2s;
+        }
+        
+        .toolbar-btn:hover { background: #dfe4ea; }
+        .toolbar-btn.primary { background: var(--primary-color); color: white; }
+        .toolbar-btn.primary:hover { background: #34495e; }
+        .toolbar-btn.danger { background: #ffeaa7; color: #d35400; }
+        .toolbar-btn.action { background: var(--day-border-1); color: white; }
+        .toolbar-btn.active { background: #e74c3c; color: white; animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        .container {
+            max-width: 1400px;
+            width: 100%;
+            position: relative;
+            padding: 20px 0;
+            overflow-x: auto;
+            margin-top: 60px; /* Space for toolbar */
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 60px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        /* Fishbone Spine - Background Line */
+        .spine-bg {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            right: 20px;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            transform: translateY(-50%);
+            z-index: 0;
+        }
+
+        .fishbone-wrapper {
+            display: flex;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+            padding: 50px 20px;
+            min-height: 400px;
+            width: fit-content;
+            margin: 0 auto;
+        }
+
+        /* Day Group Visuals */
+        .day-group {
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding: 20px 0;
+            margin: 0 5px;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+
+        .day-label {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #bdc3c7;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            pointer-events: none;
+            border-bottom: 2px solid transparent;
+            padding-bottom: 5px;
+        }
+
+        .day-group[data-day="1"] .day-label { color: var(--day-border-1); border-color: var(--day-border-1); }
+        .day-group[data-day="2"] .day-label { color: var(--day-border-2); border-color: var(--day-border-2); }
+        .day-group[data-day="3"] .day-label { color: var(--day-border-3); border-color: var(--day-border-3); }
+        /* Fallback for other days */
+        .day-group .day-label { color: var(--text-color); }
+
+        /* Node Group */
+        .node-group {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 180px;
+            height: 300px;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+        
+        /* Dragging Styles */
+        .node-group[draggable="true"] {
+            cursor: grab;
+        }
+        .node-group.dragging {
+            opacity: 0.5;
+            transform: scale(0.9);
+            cursor: grabbing;
+        }
+        .node-group.drag-over {
+            transform: scale(1.05);
+        }
+        
+        /* Selection Mode Styles */
+        body.selecting .node-group { cursor: crosshair; }
+        body.selecting .node-group:hover .spine-node { transform: translate(-50%, -50%) scale(1.5); background: var(--day-border-1); }
+        .node-group.selected .spine-node { background: #e74c3c !important; transform: translate(-50%, -50%) scale(1.5); }
+        .node-group.range-highlight .card { border: 2px solid var(--day-border-1); background: #e8f4fc; }
+
+        /* Add Button Zone */
+        .add-zone {
+            width: 40px;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            cursor: pointer;
+            position: relative;
+            z-index: 5;
+        }
+        .add-zone:hover { opacity: 1; }
+
+        .add-btn {
+            width: 24px;
+            height: 24px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* Central Node on Spine */
+        .spine-node {
+            width: 16px;
+            height: 16px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 0 3px var(--bg-color);
+            z-index: 2;
+            pointer-events: none; /* Let drag events pass through */
+            transition: all 0.2s;
+        }
+        
+        /* Ensure node is always centered visually on the spine line */
+        .spine-node::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .spine-node.start {
+            width: 24px;
+            height: 24px;
+            background-color: var(--accent-color);
+        }
+
+        /* Branch Content */
+        .branch {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 140px;
+            transition: all 0.3s ease;
+            pointer-events: none; /* Important for drag */
+        }
+        
+        /* Card needs pointer events */
+        .card {
+            pointer-events: auto;
+            background: var(--node-bg);
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+            position: relative;
+            border-left: 4px solid #bdc3c7;
+            transition: transform 0.2s;
+        }
+
+        .branch.top { bottom: 50%; padding-bottom: 30px; }
+        .branch.bottom { top: 50%; padding-top: 30px; }
+
+        /* Connecting Lines */
+        .branch::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            width: 2px;
+            background-color: var(--line-color);
+            height: 30px;
+        }
+
+        .branch.top::before { bottom: 0; }
+        .branch.bottom::before { top: 0; }
+
+        /* Dynamic Card Colors */
+        .card[data-type="start"] { border-left-color: var(--accent-color); background: #fff5f5; }
+        .card[data-type="transport"] { border-left-color: #9b59b6; }
+        .card[data-type="hotel"] { border-left-color: #f1c40f; }
+        .card[data-type="scenic"] { border-left-color: #2ecc71; }
+        .card[data-type="food"] { border-left-color: #e67e22; }
+        .card[data-type="custom"] { border-left-color: #34495e; }
+
+        .card-icon { font-size: 1.2rem; display: block; margin-bottom: 4px; }
+        .card-title { font-weight: 600; font-size: 0.9rem; display: block; line-height: 1.2; }
+        .card-desc { font-size: 0.75rem; color: #7f8c8d; margin-top: 4px; display: block; }
+        .card-cond { font-size: 0.7rem; color: #e74c3c; margin-top: 4px; display: block; font-weight: bold; background: #fff0f0; padding: 2px 4px; border-radius: 4px; }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000; /* Increased to be above toolbar */
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;
+        }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-cancel { background: #ecf0f1; color: #7f8c8d; }
+        .btn-save { background: var(--primary-color); color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+
+        @media (max-width: 768px) {
+            .fishbone-wrapper { flex-direction: column; align-items: flex-start; padding-left: 40px; }
+            .spine-bg { width: 4px; height: 100%; left: 40px; top: 0; transform: none; }
+            .day-group { flex-direction: column; border-left: 2px dashed #ddd; margin-left: 20px; padding-left: 20px; width: 100%; }
+            .node-group { flex-direction: row; height: auto; width: 100%; margin-bottom: 15px; justify-content: flex-start; min-height: 80px; }
+            .branch { position: relative; left: auto; top: auto; bottom: auto; transform: none; width: 100%; padding: 0; }
+            .branch::before { display: none; }
+            .card { text-align: left; display: flex; align-items: center; gap: 10px; }
+            .add-zone { width: 100%; height: 40px; }
+            .toolbar { width: 90%; flex-wrap: wrap; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar">
+        <button class="toolbar-btn primary" onclick="saveData()">💾 保存</button>
+        <button class="toolbar-btn danger" onclick="resetData()">↺ 重置</button>
+        <button class="toolbar-btn action" id="rangeBtn" onclick="toggleRangeMode()">📅 设置天数范围</button>
+        <div id="statusMsg" style="margin-left:10px; padding-top:8px; font-size:0.9rem; color:green; display:none;">已保存!</div>
+    </div>
+
+    <div class="container">
+        <h1>我的旅行行程鱼骨图</h1>
+        <div class="spine-bg"></div>
+        <div class="fishbone-wrapper" id="app">
+            <!-- Dynamic Content Will Be Rendered Here -->
+        </div>
+    </div>
+
+    <!-- Edit/Add Modal -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal">
+            <h3 id="modalTitle">添加新节点</h3>
+            <div class="form-group">
+                <label>标题</label>
+                <input type="text" id="nodeTitle" placeholder="例如：打卡拍照">
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea id="nodeDesc" rows="2" placeholder="输入简短描述..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>开始条件</label>
+                <input type="text" id="nodeStartCond" placeholder="例如：10:00 出发">
+            </div>
+            <div class="form-group">
+                <label>结束条件</label>
+                <input type="text" id="nodeEndCond" placeholder="例如：12:00 结束">
+            </div>
+            <div class="form-group">
+                <label>类型</label>
+                <select id="nodeType">
+                    <option value="custom">自定义 (📍)</option>
+                    <option value="scenic">景区 (🏔️)</option>
+                    <option value="food">美食 (🍽️)</option>
+                    <option value="transport">交通 (🚗)</option>
+                    <option value="hotel">酒店 (🏨)</option>
+                    <option value="start">起点 (🏁)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>所属天数 (Day)</label>
+                <input type="number" id="nodeDay" min="0" max="10" value="1">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-danger" id="btnDelete" onclick="deleteNode()" style="margin-right:auto; display:none;">删除</button>
+                <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn btn-save" onclick="saveNode()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Range Input Modal -->
+    <div class="modal-overlay" id="rangeModal">
+        <div class="modal" style="max-width:300px;">
+            <h3>设置选中范围的天数</h3>
+            <p>已选中 <span id="selectedCount">0</span> 个节点</p>
+            <div class="form-group">
+                <label>设为 Day:</label>
+                <input type="number" id="rangeDayInput" min="1" max="10" value="1">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" onclick="cancelRange()">取消</button>
+                <button class="btn btn-save" onclick="confirmRange()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default Data
+        const defaultNodes = [
+            { id: 'start', title: '开始行程', desc: '点击开启旅程', type: 'start', day: 0 },
+            { id: 'n1', title: '大交通 (去程)', desc: '来时航班', type: 'transport', day: 1 },
+            { id: 'n2', title: '入住酒店', desc: '酒店详情', type: 'hotel', day: 1 },
+            { id: 'n3', title: '景区游览', desc: '第一日景区', type: 'scenic', day: 2 },
+            { id: 'n4', title: '当地美食', desc: '特色餐饮', type: 'food', day: 2 },
+            { id: 'n5', title: '景区游览', desc: '第二日景区', type: 'scenic', day: 2 },
+            { id: 'n6', title: '入住酒店', desc: '休息', type: 'hotel', day: 2 },
+            { id: 'n7', title: '景区游览', desc: '第三日景区', type: 'scenic', day: 3 },
+            { id: 'n8', title: '大交通 (返程)', desc: '返程高铁', type: 'transport', day: 3 }
+        ];
+
+        let nodes = [];
+        let dragSrcIndex = null;
+        let editingIndex = null; // null = add mode, number = edit mode
+        let isRangeMode = false;
+        let rangeStartIdx = null;
+        // Global var to store insert index
+        let insertIndex = 0;
+        
+        // Define icons BEFORE usage
+        const icons = {
+            'start': '🏁', 'transport': '✈️', 'hotel': '🏨', 'scenic': '🏔️', 
+            'food': '🍽️', 'custom': '📍'
+        };
+
+        // Load Data on Init
+        loadData();
+
+        function saveData() {
+            localStorage.setItem('fishboneNodes_v3', JSON.stringify(nodes));
+            const msg = document.getElementById('statusMsg');
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 2000);
+        }
+
+        function loadData() {
+            // Use v3 key to force new defaults and avoid old corrupt data
+            const saved = localStorage.getItem('fishboneNodes_v3');
+            if (saved) {
+                try {
+                    nodes = JSON.parse(saved);
+                    // Basic validation
+                    if (!Array.isArray(nodes) || nodes.length === 0) {
+                        nodes = JSON.parse(JSON.stringify(defaultNodes));
+                    }
+                } catch (e) {
+                    console.error("Data corruption detected, resetting to defaults", e);
+                    nodes = JSON.parse(JSON.stringify(defaultNodes));
+                }
+            } else {
+                nodes = JSON.parse(JSON.stringify(defaultNodes));
+            }
+            render();
+        }
+
+        function resetData() {
+            if(confirm('确定要重置所有数据吗？')) {
+                nodes = JSON.parse(JSON.stringify(defaultNodes));
+                saveData();
+                render();
+            }
+        }
+
+        function render() {
+            const container = document.getElementById('app');
+            container.innerHTML = '';
+            
+            let currentDay = -1;
+            let currentDayGroup = null;
+
+            nodes.forEach((node, index) => {
+                // Grouping Logic
+                if (node.day !== currentDay) {
+                    currentDay = node.day;
+                    currentDayGroup = document.createElement('div');
+                    currentDayGroup.className = 'day-group';
+                    currentDayGroup.dataset.day = currentDay;
+                    
+                    if (currentDay > 0) {
+                        const label = document.createElement('div');
+                        label.className = 'day-label';
+                        label.innerText = `Day ${currentDay}`;
+                        currentDayGroup.appendChild(label);
+                    }
+                    container.appendChild(currentDayGroup);
+                }
+
+                // Add Zone
+                const addZone = document.createElement('div');
+                addZone.className = 'add-zone';
+                addZone.innerHTML = '<div class="add-btn">+</div>';
+                addZone.onclick = (e) => { e.stopPropagation(); openModal(index, true); };
+                currentDayGroup.appendChild(addZone);
+
+                // Node Element
+                const nodeEl = document.createElement('div');
+                nodeEl.className = 'node-group';
+                if (!isRangeMode) {
+                    nodeEl.draggable = true;
+                }
+                nodeEl.dataset.index = index;
+                
+                // Highlight logic for Range Mode
+                if (isRangeMode && rangeStartIdx !== null) {
+                    // Highlight range from start to current hover? 
+                    // No, we handle hover in CSS/JS events separately.
+                    // But if selected:
+                    if (index === rangeStartIdx) nodeEl.classList.add('selected');
+                }
+
+                // Events
+                if (!isRangeMode) {
+                    nodeEl.addEventListener('dragstart', handleDragStart);
+                    nodeEl.addEventListener('dragover', handleDragOver);
+                    nodeEl.addEventListener('drop', handleDrop);
+                    nodeEl.addEventListener('dragend', handleDragEnd);
+                    nodeEl.onclick = () => openModal(index, false); // Edit mode
+                } else {
+                    nodeEl.onclick = () => handleRangeClick(index);
+                    nodeEl.onmouseover = () => handleRangeHover(index);
+                }
+
+                const position = index % 2 === 0 ? 'bottom' : 'top';
+                const icon = icons[node.type] || '📍';
+                
+                // Add Conditions to Card HTML
+                let condHTML = '';
+                if (node.startCond) condHTML += `<span class="card-cond">始: ${node.startCond}</span>`;
+                if (node.endCond) condHTML += `<span class="card-cond">终: ${node.endCond}</span>`;
+
+                nodeEl.innerHTML = `
+                    <div class="spine-node ${node.type === 'start' ? 'start' : ''}"></div>
+                    <div class="branch ${position}">
+                        <div class="card" data-type="${node.type}">
+                            <span class="card-icon">${icon}</span>
+                            <span class="card-title">${node.title}</span>
+                            <span class="card-desc">${node.desc}</span>
+                            ${condHTML}
+                        </div>
+                    </div>
+                `;
+                currentDayGroup.appendChild(nodeEl);
+            });
+
+            // Final Add Zone
+            if (currentDayGroup) {
+                const lastZone = document.createElement('div');
+                lastZone.className = 'add-zone';
+                lastZone.innerHTML = '<div class="add-btn">+</div>';
+                lastZone.onclick = (e) => { e.stopPropagation(); openModal(nodes.length, true); };
+                currentDayGroup.appendChild(lastZone);
+            }
+        }
+
+        // --- Range Mode Logic ---
+        function toggleRangeMode() {
+            isRangeMode = !isRangeMode;
+            rangeStartIdx = null;
+            document.body.classList.toggle('selecting', isRangeMode);
+            const btn = document.getElementById('rangeBtn');
+            if (isRangeMode) {
+                btn.classList.add('active');
+                btn.innerText = '请点击起始节点...';
+            } else {
+                btn.classList.remove('active');
+                btn.innerText = '📅 设置天数范围';
+                // Clear highlights
+                document.querySelectorAll('.node-group').forEach(el => el.classList.remove('range-highlight', 'selected'));
+            }
+            render(); // Re-render to update click handlers
+        }
+
+        function handleRangeClick(index) {
+            if (rangeStartIdx === null) {
+                // First click
+                rangeStartIdx = index;
+                document.getElementById('rangeBtn').innerText = '请点击结束节点...';
+                render();
+            } else {
+                // Second click
+                const start = Math.min(rangeStartIdx, index);
+                const end = Math.max(rangeStartIdx, index);
+                openRangeModal(start, end);
+            }
+        }
+
+        function handleRangeHover(index) {
+            if (rangeStartIdx !== null) {
+                const start = Math.min(rangeStartIdx, index);
+                const end = Math.max(rangeStartIdx, index);
+                document.querySelectorAll('.node-group').forEach((el, idx) => {
+                    if (idx >= start && idx <= end) el.classList.add('range-highlight');
+                    else el.classList.remove('range-highlight');
+                });
+            }
+        }
+
+        function openRangeModal(start, end) {
+            document.getElementById('selectedCount').innerText = (end - start + 1);
+            document.getElementById('rangeDayInput').value = nodes[start].day || 1;
+            document.getElementById('rangeModal').dataset.start = start;
+            document.getElementById('rangeModal').dataset.end = end;
+            document.getElementById('rangeModal').classList.add('active');
+        }
+
+        function cancelRange() {
+            document.getElementById('rangeModal').classList.remove('active');
+            toggleRangeMode(); // Exit mode
+        }
+
+        function confirmRange() {
+            const start = parseInt(document.getElementById('rangeModal').dataset.start);
+            const end = parseInt(document.getElementById('rangeModal').dataset.end);
+            const newDay = parseInt(document.getElementById('rangeDayInput').value);
+
+            for (let i = start; i <= end; i++) {
+                nodes[i].day = newDay;
+            }
+            
+            document.getElementById('rangeModal').classList.remove('active');
+            toggleRangeMode(); // Exit mode
+            saveData();
+            render();
+        }
+
+        // --- Drag & Drop ---
+        function handleDragStart(e) {
+            this.classList.add('dragging');
+            dragSrcIndex = parseInt(this.dataset.index);
+            e.dataTransfer.effectAllowed = 'move';
+        }
+        function handleDragOver(e) {
+            if (e.preventDefault) e.preventDefault();
+            this.classList.add('drag-over');
+            return false;
+        }
+        function handleDrop(e) {
+            e.stopPropagation();
+            this.classList.remove('drag-over');
+            const dropIndex = parseInt(this.dataset.index);
+            if (dragSrcIndex !== dropIndex) {
+                const movedItem = nodes[dragSrcIndex];
+                nodes.splice(dragSrcIndex, 1);
+                nodes.splice(dropIndex, 0, movedItem);
+                
+                // Intelligent Day Update
+                const prev = nodes[dropIndex - 1];
+                const next = nodes[dropIndex + 1];
+                if (prev) movedItem.day = prev.day;
+                else if (next) movedItem.day = next.day;
+                
+                saveData();
+                render();
+            }
+            return false;
+        }
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.node-group').forEach(el => el.classList.remove('drag-over'));
+        }
+
+        // --- Edit/Add Modal ---
+        function openModal(index, isAdd) {
+            editingIndex = index;
+            const modal = document.getElementById('addModal');
+            const btnDelete = document.getElementById('btnDelete');
+            
+            if (isAdd) {
+                document.getElementById('modalTitle').innerText = '添加新节点';
+                document.getElementById('nodeTitle').value = '';
+                document.getElementById('nodeDesc').value = '';
+                document.getElementById('nodeStartCond').value = '';
+                document.getElementById('nodeEndCond').value = '';
+                document.getElementById('nodeType').value = 'custom';
+                // Guess Day
+                let guessDay = 1;
+                if (index > 0 && index <= nodes.length) {
+                   guessDay = nodes[index-1].day;
+                } else if (nodes.length > 0) {
+                   guessDay = nodes[0].day;
+                }
+                document.getElementById('nodeDay').value = guessDay;
+                btnDelete.style.display = 'none';
+                editingIndex = -1; // Flag for Add mode (store insert index in global?)
+                // Actually, let's store insert index in a separate var
+                insertIndex = index;
+            } else {
+                // Edit Mode
+                const node = nodes[index];
+                document.getElementById('modalTitle').innerText = '编辑节点';
+                document.getElementById('nodeTitle').value = node.title;
+                document.getElementById('nodeDesc').value = node.desc;
+                document.getElementById('nodeStartCond').value = node.startCond || '';
+                document.getElementById('nodeEndCond').value = node.endCond || '';
+                document.getElementById('nodeType').value = node.type;
+                document.getElementById('nodeDay').value = node.day;
+                btnDelete.style.display = 'block';
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('addModal').classList.remove('active');
+        }
+
+        function saveNode() {
+            try {
+                const title = document.getElementById('nodeTitle').value;
+                const desc = document.getElementById('nodeDesc').value;
+                const startCond = document.getElementById('nodeStartCond').value;
+                const endCond = document.getElementById('nodeEndCond').value;
+                const type = document.getElementById('nodeType').value;
+                let day = parseInt(document.getElementById('nodeDay').value);
+                
+                if (isNaN(day)) day = 1;
+
+                if (editingIndex === -1) {
+                    // Add
+                    // Validate insertIndex
+                    if (typeof insertIndex === 'undefined' || insertIndex === null) {
+                         insertIndex = nodes.length;
+                    }
+                    
+                    nodes.splice(insertIndex, 0, {
+                        id: 'new_' + Date.now(),
+                        title, desc, startCond, endCond, type, day
+                    });
+                } else {
+                    // Edit
+                    if (nodes[editingIndex]) {
+                        nodes[editingIndex].title = title;
+                        nodes[editingIndex].desc = desc;
+                        nodes[editingIndex].startCond = startCond;
+                        nodes[editingIndex].endCond = endCond;
+                        nodes[editingIndex].type = type;
+                        nodes[editingIndex].day = day;
+                    } else {
+                        throw new Error("找不到要编辑的节点");
+                    }
+                }
+                
+                saveData();
+                render();
+                closeModal();
+            } catch (error) {
+                console.error("Save failed:", error);
+                alert("保存失败: " + error.message);
+            }
+        }
+
+        function deleteNode() {
+            if (confirm('确定删除此节点?')) {
+                nodes.splice(editingIndex, 1);
+                saveData();
+                render();
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
