@@ -55,6 +55,9 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+            /* 确保最后一个元素能滚动到顶部，底部需要留出足够的空白 */
+            padding-bottom: 80vh; 
+            scroll-behavior: smooth;
         }
 
         /* 消息气泡通用样式 */
@@ -177,8 +180,7 @@
 
         /* 顶部动效区（缩小的原版 loading 效果） */
         .agent-animation-area {
-            position: sticky;
-            top: 0;
+            position: relative;
             z-index: 30; /* 确保在文字之上 */
             flex-shrink: 0; /* 防止被压缩 */
             height: 120px;
@@ -489,11 +491,18 @@
                 </div>
             `;
             chatHistory.appendChild(msgDiv);
-            scrollToBottom();
+            
+            // 使用精确的 offsetTop 进行滚动，确保新消息气泡能对齐到容器顶部
+            setTimeout(() => {
+                chatHistory.scrollTo({
+                    top: msgDiv.offsetTop - 20, // 减去 20px 的 padding-top 让视觉更舒适
+                    behavior: 'smooth'
+                });
+            }, 10);
         }
 
         function scrollToBottom() {
-            chatHistory.scrollTop = chatHistory.scrollHeight;
+            // chatHistory.scrollTop = chatHistory.scrollHeight; // 移除全局强制滚动到底部
         }
 
         // ==================== 核心：智能体响应生命周期控制 ====================
@@ -504,7 +513,9 @@
             const template = document.getElementById('agent-widget-template').content.cloneNode(true);
             msgDiv.appendChild(template);
             chatHistory.appendChild(msgDiv);
-            scrollToBottom();
+            
+            // 确保智能体的回复气泡出现时，不破坏刚才用户问题的顶部定位
+            // 这里不再调用 scrollToBottom
 
             // 获取内部元素引用
             const visualContainer = msgDiv.querySelector('.agent-visual-container');
