@@ -60,16 +60,44 @@
         /* 消息气泡通用样式 */
         .message {
             display: flex;
-            flex-direction: column;
-            max-width: 85%;
+            align-items: flex-start;
+            gap: 12px;
+            max-width: 90%;
+            margin-bottom: 20px; /* 增加一点底部间距 */
         }
         .message.user {
             align-self: flex-end;
-            align-items: flex-end;
+            flex-direction: row-reverse; /* 用户消息头像在右侧 */
         }
         .message.agent {
             align-self: flex-start;
+        }
+
+        /* 聊天列表中的头像和名称 */
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            background-color: #eee;
+        }
+        .message-content-wrapper {
+            display: flex;
+            flex-direction: column;
+            max-width: calc(100% - 52px); /* 减去头像和间距的宽度 */
+        }
+        .message.user .message-content-wrapper {
+            align-items: flex-end;
+        }
+        .message.agent .message-content-wrapper {
             align-items: flex-start;
+        }
+        .chat-name {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 4px;
+            padding: 0 4px;
         }
 
         .bubble {
@@ -78,6 +106,7 @@
             font-size: 0.95rem;
             line-height: 1.5;
             word-wrap: break-word;
+            display: inline-block;
         }
         .message.user .bubble {
             background-color: #4A47F6;
@@ -352,7 +381,11 @@
         <main class="chat-history" id="chat-history">
             <!-- 初始欢迎语 -->
             <div class="message agent">
-                <div class="bubble">你好！我是你的专属旅行管家。告诉我你想去哪里，或者想了解什么样的旅行方案？</div>
+                <img src="downloaded-imag1e.png" alt="agent" class="chat-avatar" />
+                <div class="message-content-wrapper">
+                    <div class="chat-name">AI 旅行助手</div>
+                    <div class="bubble">你好！我是你的专属旅行管家。告诉我你想去哪里，或者想了解什么样的旅行方案？</div>
+                </div>
             </div>
         </main>
         
@@ -364,8 +397,11 @@
 
     <!-- 隐藏的模板：智能体动态组件 -->
     <template id="agent-widget-template">
-        <div class="agent-visual-container" style="display: block;">
-            <!-- 顶部动画区 -->
+        <img src="downloaded-imag1e.png" alt="agent" class="chat-avatar agent-dynamic-avatar" />
+        <div class="message-content-wrapper" style="width: 100%;">
+            <div class="chat-name agent-dynamic-name">AI 旅行助手</div>
+            <div class="agent-visual-container" style="display: block;">
+                <!-- 顶部动画区 -->
             <div class="agent-animation-area">
                 <div class="center-ring"></div>
                 <div class="answering-ripple"></div>
@@ -385,6 +421,7 @@
             <div class="agent-text-area">
                 <p class="loading-text"><span class="msg-text">智能体集结中</span><span class="loading-dots"></span></p>
                 <div class="response-text" style="display: none;"></div>
+            </div>
             </div>
         </div>
     </template>
@@ -425,7 +462,13 @@
         function appendUserMessage(text) {
             const msgDiv = document.createElement('div');
             msgDiv.className = 'message user';
-            msgDiv.innerHTML = `<div class="bubble">${text}</div>`;
+            msgDiv.innerHTML = `
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="user" class="chat-avatar" style="background-color: #e0f2fe;" />
+                <div class="message-content-wrapper">
+                    <div class="chat-name">我</div>
+                    <div class="bubble">${text}</div>
+                </div>
+            `;
             chatHistory.appendChild(msgDiv);
             scrollToBottom();
         }
@@ -543,6 +586,19 @@
             // --- 状态转换模拟：3秒后选定头像，进入 ANSWERING 状态 ---
             setTimeout(() => {
                 clearInterval(carouselTimer);
+                
+                // 获取选中的头像数据
+                const selectedData = elements[currentIndex].data;
+                
+                // 更新外层聊天气泡的头像和名称，使其与选中的智能体一致
+                const dynamicAvatar = msgDiv.querySelector('.agent-dynamic-avatar');
+                const dynamicName = msgDiv.querySelector('.agent-dynamic-name');
+                if(dynamicAvatar) dynamicAvatar.src = selectedData.src;
+                if(dynamicName) {
+                    // 从 message 中提取角色名（简单截取“正在”前面的文字）
+                    const roleName = selectedData.message.split('正在')[0];
+                    dynamicName.innerText = roleName;
+                }
                 
                 // --- 状态 2: ANSWERING（选中角色，开始打字） ---
                 
