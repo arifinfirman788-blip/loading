@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avatar Loop Loading Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #4A47F6;
+            background-size: 200% 100%;
+            background-image: linear-gradient(to right, #4A47F6 50%, #4A47F6 50%);
+            background-position: 0% 0%;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        /* 核心动画区域 */
+        .carousel-container {
+            position: relative;
+            width: 100vw;
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        /* 中间的白色圆环 */
+        .center-ring {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 130px;
+            height: 130px;
+            border: 8px solid white;
+            border-radius: 50%;
+            box-sizing: border-box;
+            z-index: 10; /* 放在头像上面 */
+            pointer-events: none;
+        }
+
+        /* 单个头像容器 */
+        .avatar {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* 基础变换中心点 */
+            transform-origin: center center;
+            /* 平滑移动和缩放的过渡效果 */
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease-in-out;
+        }
+
+        /* 内部图片适配 */
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            transform-origin: bottom center;
+        }
+
+        /* ----- 处于中心位置时的专属动画 ----- */
+        
+        /* 动效 1：上下跳动 */
+        .avatar.active .type-0 {
+            animation: jump 0.8s ease-in-out infinite alternate;
+        }
+        @keyframes jump {
+            0% { transform: translateY(0) scaleY(1); }
+            100% { transform: translateY(-10px) scaleY(1.05); }
+        }
+
+        /* 动效 2：点头晃动 */
+        .avatar.active .type-1 {
+            animation: nod 1s ease-in-out infinite;
+        }
+        @keyframes nod {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-10deg); }
+            75% { transform: rotate(10deg); }
+        }
+
+        /* 动效 3：呼吸缩放 */
+        .avatar.active .type-2 {
+            animation: pulse 1s ease-in-out infinite alternate;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        /* 动效 4：嘚瑟扭动 */
+        .avatar.active .type-3 {
+            animation: wiggle 0.8s linear infinite;
+        }
+        @keyframes wiggle {
+            0%, 100% { transform: skewX(0deg); }
+            25% { transform: skewX(-8deg); }
+            75% { transform: skewX(8deg); }
+        }
+        
+        /* 动效 5：轻微旋转 */
+        .avatar.active .type-4 {
+            animation: spin-light 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes spin-light {
+            0% { transform: rotate(-15deg); }
+            100% { transform: rotate(15deg); }
+        }
+
+        /* 底部文字样式 */
+        .text-content {
+            text-align: center;
+            color: white;
+            z-index: 20;
+            height: 60px; /* 固定高度防止文字变化时跳动 */
+        }
+
+        .text-content h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0 0 15px 0;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #loading-message {
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .text-content p {
+            font-size: 1rem;
+            font-weight: 400;
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        /* 文字的简单呼吸动效 */
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="carousel-container" id="carousel">
+        <div class="center-ring"></div>
+        <!-- 头像将通过 JS 动态生成并注入这里 -->
+    </div>
+
+    <div class="text-content">
+        <h2><span id="loading-message">正在加载中</span><span class="loading-dots"></span></h2>
+        <p>请耐心等待</p>
+    </div>
+
+    <script>
+        // 定义 5 种头像的本地图片数据、背景颜色和专属文案
+        const avatarData = [
+            {
+                type: 0,
+                bg: '#4A47F6', // 蓝色背景
+                message: '黄小西正在思考中',
+                content: '<img class="type-0" src="downloaded-imag1e.png" alt="avatar 1">'
+            },
+            {
+                type: 1,
+                bg: '#00B894', // 绿青色背景
+                message: '旅行记录官正在翻找合适的照片',
+                content: '<img class="type-1" src="downloaded-image (1).png" alt="avatar 2">'
+            },
+            {
+                type: 2,
+                bg: '#8E44AD', // 紫色背景
+                message: '旅居管家正在帮您畅想',
+                content: '<img class="type-2" src="downloaded-image (2).png" alt="avatar 3">'
+            },
+            {
+                type: 3,
+                bg: '#E17055', // 珊瑚红背景
+                message: '旅行规划小助手正在查资料',
+                content: '<img class="type-3" src="downloaded-image (3).png" alt="avatar 4">'
+            },
+            {
+                type: 4,
+                bg: '#F39C12', // 橙黄色背景
+                message: '订购助手正在帮您查看最优惠的商品',
+                content: '<img class="type-4" src="downloaded-image (4).png" alt="avatar 5">'
+            }
+        ];
+
+        // 为了实现无缝循环，我们将数据翻倍（5个变10个）
+        const items = [...avatarData, ...avatarData];
+        const carousel = document.getElementById('carousel');
+        const elements = [];
+
+        // 初始化 DOM
+        items.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'avatar';
+            div.innerHTML = item.content;
+            carousel.appendChild(div);
+            elements.push({
+                el: div,
+                data: item
+            });
+        });
+
+        let currentIndex = 0;
+        const total = elements.length;
+        let currentBg = items[0].bg; // 记录当前背景色
+
+        function updatePositions() {
+            const currentData = elements[currentIndex].data;
+            
+            // 更新页面背景色（一半一半的滑动过渡效果）
+            const newBg = currentData.bg;
+            if (currentBg !== newBg) {
+                // 取消过渡，将新旧颜色拼接到渐变背景上，并定位到旧颜色
+                document.body.style.transition = 'none';
+                document.body.style.backgroundImage = `linear-gradient(to right, ${currentBg} 50%, ${newBg} 50%)`;
+                document.body.style.backgroundPosition = '0% 0%';
+                
+                // 强制重绘，使上述瞬间改变生效
+                void document.body.offsetHeight;
+                
+                // 开启过渡，滑动背景至新颜色（保持与头像滑动的动画节奏一致）
+                document.body.style.transition = 'background-position 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                document.body.style.backgroundPosition = '100% 0%';
+                
+                currentBg = newBg;
+            }
+            
+            // 更新底部文案，增加一个简单的淡入淡出过渡效果
+            const messageEl = document.getElementById('loading-message');
+            messageEl.style.opacity = 0;
+            setTimeout(() => {
+                messageEl.innerText = currentData.message;
+                messageEl.style.opacity = 1;
+            }, 300); // 等待半秒淡出后再改文字淡入
+
+            elements.forEach((item, i) => {
+                let offset = i - currentIndex;
+                
+                // 处理无缝首尾相接的数学逻辑
+                // 保证 offset 永远在 -4 到 5 之间 (共 10 个元素)
+                while (offset < -4) offset += total;
+                while (offset > 5) offset -= total;
+
+                const el = item.el;
+                
+                // 如果元素是从最左侧瞬间跳到最右侧，取消动画过渡，实现无缝隐形切换
+                if (offset === 5) {
+                    el.style.transition = 'none';
+                } else {
+                    el.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease-in-out';
+                }
+
+                // 计算位置、缩放和层级
+                let x = offset * 110; // 每个头像相距 110px
+                let scale = 1;
+                let opacity = 1;
+                let zIndex = 5 - Math.abs(offset); // 越靠近中心层级越高
+
+                if (offset === 0) {
+                    // 正中心：放大并激活专属动画
+                    scale = 1.25; 
+                    zIndex = 5; // 放在圆环(z-index:10)的下方，或者根据需要调整
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                    if (Math.abs(offset) === 1) {
+                        scale = 0.9;
+                    } else if (Math.abs(offset) === 2) {
+                        scale = 0.7;
+                    } else {
+                        // 距离大于 2 的在屏幕外，缩小并隐藏
+                        scale = 0.5;
+                        opacity = 0;
+                    }
+                }
+
+                // 应用样式
+                // 使用 setTimeout 确保取消 transition 的操作先一步生效
+                setTimeout(() => {
+                    el.style.transform = `translate(-50%, -50%) translateX(${x}px) scale(${scale})`;
+                    el.style.opacity = opacity;
+                    el.style.zIndex = zIndex;
+                }, 10);
+            });
+        }
+
+        // 初始化第一次渲染
+        updatePositions();
+
+        // 开启循环定时器，每 2.5 秒切换一次
+        setInterval(() => {
+            currentIndex = (currentIndex + 1) % total;
+            updatePositions();
+        }, 2500);
+
+    </script>
+</body>
+</html>

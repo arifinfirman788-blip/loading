@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 旅行助手 对话页面</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 聊天窗口主体 */
+        .chat-app {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 头部 */
+        .chat-header {
+            padding: 16px 20px;
+            background: white;
+            border-bottom: 1px solid #eaeaea;
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10;
+        }
+        .chat-header::before {
+            content: '';
+            display: block;
+            width: 32px;
+            height: 32px;
+            background: url('downloaded-imag1e.png') center/cover no-repeat, #4A47F6;
+            border-radius: 50%;
+        }
+
+        /* 聊天记录区域 */
+        .chat-history {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 消息气泡通用样式 */
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+        }
+        .message.user {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+        .message.agent {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+
+        .bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        .message.user .bubble {
+            background-color: #4A47F6;
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+        .message.agent .bubble {
+            background-color: #f7f7f8;
+            color: #333;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #eaeaea;
+        }
+
+        /* 输入区域 */
+        .chat-footer {
+            padding: 16px 20px;
+            background: white;
+            border-top: 1px solid #eaeaea;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .chat-footer input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            outline: none;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        .chat-footer input:focus {
+            border-color: #4A47F6;
+        }
+        .chat-footer button {
+            background-color: #4A47F6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .chat-footer button:hover {
+            opacity: 0.9;
+        }
+        .chat-footer button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* ==================== 智能体视觉动效组件 ==================== */
+        
+        /* 智能体专属卡片容器 */
+        .agent-visual-container {
+            width: 100%;
+            min-width: 320px;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #eaeaea;
+            overflow: hidden;
+            margin-bottom: 8px;
+            display: none; /* 默认隐藏，根据状态显示 */
+        }
+
+        /* 顶部动效区（缩小的原版 loading 效果） */
+        .agent-animation-area {
+            position: relative;
+            height: 120px;
+            background-color: #4A47F6;
+            background-size: 200% 100%;
+            background-image: linear-gradient(to right, #4A47F6 50%, #4A47F6 50%);
+            background-position: 0% 0%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* 缩小版中心圆环 */
+        .agent-animation-area .center-ring {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 70px;
+            height: 70px;
+            border: 4px solid white;
+            border-radius: 50%;
+            box-sizing: border-box;
+            z-index: 10;
+            pointer-events: none;
+            transition: opacity 0.5s, transform 0.5s;
+        }
+
+        /* 缩小版头像容器 */
+        .agent-animation-area .avatar {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center center;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease-in-out;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .agent-animation-area .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            transform-origin: bottom center;
+        }
+
+        /* 动效区域内的过渡文字提示 */
+        .animation-hint-text {
+            position: absolute;
+            left: 50%;
+            bottom: 12px; /* 移到下方 */
+            top: auto;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 0.85rem; /* 稍微缩小字号适应空间 */
+            font-weight: 500;
+            text-align: center;
+            opacity: 0;
+            z-index: 15;
+            pointer-events: none;
+            width: 90%;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            transition: opacity 0.4s ease;
+        }
+
+        /* 回答中的专属光波涟漪动效 */
+        .answering-ripple {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            z-index: 5;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .answering-ripple.active {
+            animation: radar-ripple 1.5s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        @keyframes radar-ripple {
+            0% { width: 50px; height: 50px; opacity: 1; border: 2px solid white; }
+            100% { width: 150px; height: 150px; opacity: 0; border: 2px solid white; }
+        }
+
+        /* 下方文字区域 */
+        .agent-text-area {
+            padding: 12px 16px;
+            background: white;
+            color: #333;
+            font-size: 0.9rem;
+            min-height: 40px;
+        }
+
+        /* 加载状态文字样式 */
+        .loading-text {
+            color: #666;
+            font-weight: 500;
+            text-align: center;
+            margin: 0;
+        }
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+
+        /* 打字机光标 */
+        .typing-cursor::after {
+            content: '|';
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* ==================== 关联卡片组件（移动到动效区内部） ==================== */
+        .cards-wrapper {
+            position: absolute;
+            left: 100%; /* 初始在右侧屏幕外 */
+            top: 50%;
+            transform: translateY(-50%);
+            width: 68%;
+            padding: 0 10px;
+            box-sizing: border-box;
+            background: transparent;
+            border: none;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            transition: left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 20;
+        }
+        /* 隐藏原生滚动条 */
+        .cards-wrapper::-webkit-scrollbar {
+            display: none;
+        }
+        .cards-container {
+            display: flex;
+            gap: 10px;
+            width: max-content;
+            padding-right: 20px; /* 留出滚动余量 */
+        }
+        .card {
+            width: 120px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            border: none;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex-shrink: 0;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+        }
+        .card-img {
+            height: 60px;
+            background: #ddd;
+            background-size: cover;
+            background-position: center;
+        }
+        .card-body {
+            padding: 8px;
+        }
+        .card-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin: 0 0 2px 0;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-desc {
+            font-size: 0.65rem;
+            color: #666;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="chat-app">
+        <header class="chat-header">AI 旅行助手</header>
+        
+        <main class="chat-history" id="chat-history">
+            <!-- 初始欢迎语 -->
+            <div class="message agent">
+                <div class="bubble">你好！我是你的专属旅行管家。告诉我你想去哪里，或者想了解什么样的旅行方案？</div>
+            </div>
+        </main>
+        
+        <footer class="chat-footer">
+            <input type="text" id="chat-input" placeholder="例如：帮我规划去三亚的行程" onkeypress="handleKeyPress(event)" />
+            <button id="send-btn" onclick="handleSend()">发送</button>
+        </footer>
+    </div>
+
+    <!-- 隐藏的模板：智能体动态组件 -->
+    <template id="agent-widget-template">
+        <div class="agent-visual-container" style="display: block;">
+            <!-- 顶部动画区 -->
+            <div class="agent-animation-area">
+                <div class="center-ring"></div>
+                <div class="answering-ripple"></div>
+                <!-- 动效区域内的过渡文字 -->
+                <div class="animation-hint-text"></div>
+                <!-- 头像将注入这里 -->
+                
+                <!-- 卡片区（结束时展示，移入动效区内部） -->
+                <div class="cards-wrapper">
+                    <div class="cards-container">
+                        <!-- 卡片注入区 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 文字区 -->
+            <div class="agent-text-area">
+                <p class="loading-text"><span class="msg-text">智能体集结中</span><span class="loading-dots"></span></p>
+                <div class="response-text" style="display: none;"></div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // 头像数据源（保留之前的背景色和文案，更新了图片和名字位置）
+        const avatarData = [
+            { type: 0, bg: '#4A47F6', message: '黄小西正在思考中', src: 'downloaded-imag1e.png' },
+            { type: 1, bg: '#00B894', message: '旅行记录官正在翻找合适的照片', src: 'downloaded-image (1).png' },
+            { type: 2, bg: '#8E44AD', message: '旅居管家正在帮您畅想', src: 'downloaded-image (2).png' },
+            { type: 3, bg: '#E17055', message: '旅行规划小助手正在查资料', src: 'downloaded-image (3).png' },
+            { type: 4, bg: '#F39C12', message: '订购助手正在帮您查看最优惠的商品', src: 'downloaded-image (4).png' }
+        ];
+        const items = [...avatarData, ...avatarData]; // 翻倍实现无缝循环
+
+        const chatHistory = document.getElementById('chat-history');
+        const inputField = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') handleSend();
+        }
+
+        function handleSend() {
+            const text = inputField.value.trim();
+            if (!text) return;
+            
+            // 1. 发送用户消息
+            appendUserMessage(text);
+            inputField.value = '';
+            inputField.disabled = true;
+            sendBtn.disabled = true;
+
+            // 2. 模拟触发智能体回复流程
+            startAgentResponse(text);
+        }
+
+        function appendUserMessage(text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message user';
+            msgDiv.innerHTML = `<div class="bubble">${text}</div>`;
+            chatHistory.appendChild(msgDiv);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // ==================== 核心：智能体响应生命周期控制 ====================
+        function startAgentResponse(userQuery) {
+            // 1. 注入智能体气泡框架
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message agent';
+            const template = document.getElementById('agent-widget-template').content.cloneNode(true);
+            msgDiv.appendChild(template);
+            chatHistory.appendChild(msgDiv);
+            scrollToBottom();
+
+            // 获取内部元素引用
+            const visualContainer = msgDiv.querySelector('.agent-visual-container');
+            const animationArea = msgDiv.querySelector('.agent-animation-area');
+            const centerRing = msgDiv.querySelector('.center-ring');
+            const answeringRipple = msgDiv.querySelector('.answering-ripple');
+            const animationHintText = msgDiv.querySelector('.animation-hint-text');
+            const loadingTextP = msgDiv.querySelector('.loading-text');
+            const msgTextSpan = msgDiv.querySelector('.msg-text');
+            const responseTextDiv = msgDiv.querySelector('.response-text');
+            const cardsWrapper = msgDiv.querySelector('.cards-wrapper');
+            const cardsContainer = msgDiv.querySelector('.cards-container');
+
+            // 初始化头像 DOM
+            const elements = [];
+            items.forEach((item) => {
+                const div = document.createElement('div');
+                div.className = 'avatar';
+                div.innerHTML = `<img src="${item.src}" alt="avatar">`;
+                // 插入到 cardsWrapper 之前，确保卡片层级更高
+                animationArea.insertBefore(div, cardsWrapper);
+                elements.push({ el: div, data: item });
+            });
+
+            // --- 状态 1: LOADING（轮播挑选头像） ---
+            let currentIndex = 0;
+            const total = elements.length;
+            let currentBg = items[0].bg;
+            animationArea.style.backgroundImage = `linear-gradient(to right, ${currentBg} 50%, ${currentBg} 50%)`;
+
+            function updateCarousel() {
+                const currentData = elements[currentIndex].data;
+                const newBg = currentData.bg;
+                
+                // 一半一半滑动背景效果
+                if (currentBg !== newBg) {
+                    animationArea.style.transition = 'none';
+                    animationArea.style.backgroundImage = `linear-gradient(to right, ${currentBg} 50%, ${newBg} 50%)`;
+                    animationArea.style.backgroundPosition = '0% 0%';
+                    void animationArea.offsetHeight; // 重绘
+                    animationArea.style.transition = 'background-position 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    animationArea.style.backgroundPosition = '100% 0%';
+                    currentBg = newBg;
+                }
+
+                // 切换文字
+                msgTextSpan.style.opacity = 0;
+                setTimeout(() => {
+                    msgTextSpan.innerText = currentData.message;
+                    msgTextSpan.style.opacity = 1;
+                }, 300);
+
+                // 更新头像位置
+                elements.forEach((item, i) => {
+                    let offset = i - currentIndex;
+                    while (offset < -4) offset += total;
+                    while (offset > 5) offset -= total;
+
+                    const el = item.el;
+                    if (offset === 5) {
+                        el.style.transition = 'none';
+                    } else {
+                        el.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease-in-out';
+                    }
+
+                    let x = offset * 70; // 缩小间距为70px
+                    let scale = 1;
+                    let opacity = 1;
+                    let zIndex = 5 - Math.abs(offset);
+
+                    if (offset === 0) {
+                        scale = 1.25; 
+                        zIndex = 5;
+                    } else if (Math.abs(offset) === 1) {
+                        scale = 0.8;
+                    } else if (Math.abs(offset) === 2) {
+                        scale = 0.5;
+                        opacity = 0.5;
+                    } else {
+                        scale = 0.3;
+                        opacity = 0;
+                    }
+
+                    setTimeout(() => {
+                        el.style.transform = `translate(-50%, -50%) translateX(${x}px) scale(${scale})`;
+                        el.style.opacity = opacity;
+                        el.style.zIndex = zIndex;
+                    }, 10);
+                });
+            }
+
+            updateCarousel();
+            const carouselTimer = setInterval(() => {
+                currentIndex = (currentIndex + 1) % total;
+                updateCarousel();
+            }, 1500); // 聊天中轮播快一点，1.5s一次
+
+            // --- 状态转换模拟：3秒后选定头像，进入 ANSWERING 状态 ---
+            setTimeout(() => {
+                clearInterval(carouselTimer);
+                
+                // --- 状态 2: ANSWERING（选中角色，开始打字） ---
+                
+                // 1. 彻底隐藏非选中的头像
+                elements.forEach((item, i) => {
+                    let offset = i - currentIndex;
+                    while (offset < -4) offset += total;
+                    while (offset > 5) offset -= total;
+                    if (offset !== 0) {
+                        item.el.style.opacity = 0; // 隐藏其他
+                        item.el.style.display = 'none'; // 彻底移除占位
+                    }
+                });
+
+                // 2. 隐藏圆环，开启光波雷达涟漪
+                centerRing.style.opacity = 0;
+                centerRing.style.transform = 'translate(-50%, -50%) scale(1.5)';
+                answeringRipple.classList.add('active');
+
+                // 3. 切换文字区域模式
+                loadingTextP.style.display = 'none';
+                responseTextDiv.style.display = 'block';
+                responseTextDiv.classList.add('typing-cursor');
+                
+                // 4. 模拟流式输出打字效果
+                const mockAnswer = `根据您的要求，我为您找到了非常合适的方案！我们推荐去三亚湾感受椰梦长廊，去亚龙湾体验顶级沙滩水质，此外蜈支洲岛的潜水也是绝佳选择。`;
+                let charIndex = 0;
+                const typingTimer = setInterval(() => {
+                    responseTextDiv.innerText = mockAnswer.substring(0, charIndex);
+                    charIndex++;
+                    scrollToBottom();
+
+                        // --- 状态 3: COMPLETED（回答完毕，进入卡片推演过渡） ---
+                    if (charIndex > mockAnswer.length) {
+                        clearInterval(typingTimer);
+                        responseTextDiv.classList.remove('typing-cursor');
+                        
+                        // 稍微停顿一下，假装思考
+                        setTimeout(() => {
+                            // 先将动效区域稍微增高，为下方文字留出空间
+                            animationArea.style.transition = 'height 0.4s ease';
+                            animationArea.style.height = '140px';
+
+                            // 头像稍微上移，保持居中
+                            const activeAvatar = elements[currentIndex].el;
+                            activeAvatar.style.transition = 'all 0.4s ease';
+                            activeAvatar.style.top = '40%';
+
+                            // 动效区域内的文字提示显示在头像下方
+                            const extraAnswer = "哎呀，我忘了告诉你，这里还有些很好的推荐呢~";
+                            animationHintText.innerText = extraAnswer;
+                            animationHintText.style.opacity = 1;
+                            
+                            // 等待提示文字显示一会儿后，再推出卡片
+                            setTimeout(() => {
+                                // 隐藏提示文字
+                                animationHintText.style.opacity = 0;
+                                
+                                setTimeout(() => {
+                                    // 文字消失后，头像平滑移到左侧并恢复垂直居中
+                                    activeAvatar.style.transition = 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                                    activeAvatar.style.left = '16%';
+                                    activeAvatar.style.top = '50%';
+                                    activeAvatar.style.transform = 'translate(-50%, -50%) scale(0.9)';
+
+                                    // 生成关联卡片
+                                    const mockCards = [
+                                        { title: '三亚湾', desc: '椰梦长廊绝美日落', img: 'https://images.unsplash.com/photo-1540202404-b711c0ce4512?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' },
+                                        { title: '亚龙湾', desc: '天下第一湾沙滩', img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' },
+                                        { title: '蜈支洲岛', desc: '中国版马尔代夫', img: 'https://images.unsplash.com/photo-1596395284584-638cb1277a06?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80' }
+                                    ];
+                                    
+                                    mockCards.forEach(card => {
+                                        const cardHTML = `
+                                            <div class="card">
+                                                <div class="card-img" style="background-image: url('${card.img}')"></div>
+                                                <div class="card-body">
+                                                    <h4 class="card-title">${card.title}</h4>
+                                                    <p class="card-desc">${card.desc}</p>
+                                                </div>
+                                            </div>
+                                        `;
+                                        cardsContainer.insertAdjacentHTML('beforeend', cardHTML);
+                                    });
+
+                                    // 卡片从右侧滑入动效区域内部
+                                    setTimeout(() => {
+                                        cardsWrapper.style.left = '32%';
+                                        scrollToBottom();
+                                    }, 50);
+
+                                    // 恢复输入框
+                                    inputField.disabled = false;
+                                    sendBtn.disabled = false;
+                                    inputField.focus();
+                                }, 300); // 等待文字淡出
+                            }, 2000); // 提示文字展示时间
+                        }, 800); // 第一段文字打完后停顿 0.8 秒
+                    }
+                }, 50); // 打字速度
+
+            }, 4500); // 等待4.5秒（轮播3次）后开始回答
+        }
+    </script>
+</body>
+</html>
