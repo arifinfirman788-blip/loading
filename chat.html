@@ -43,7 +43,7 @@
             display: block;
             width: 32px;
             height: 32px;
-            background: url('downloaded-imag1e.png') center/cover no-repeat, #4A47F6;
+            background: url('downloaded-imag1e-opt.png') center/cover no-repeat, #4A47F6;
             border-radius: 50%;
         }
 
@@ -168,14 +168,19 @@
             background: #fff;
             border-radius: 12px;
             border: 1px solid #eaeaea;
-            overflow: hidden;
             margin-bottom: 8px;
             display: none; /* 默认隐藏，根据状态显示 */
+            display: flex;
+            flex-direction: column;
+            /* 取消了最大高度限制，让气泡自然撑开 */
         }
 
         /* 顶部动效区（缩小的原版 loading 效果） */
         .agent-animation-area {
-            position: relative;
+            position: sticky;
+            top: 0;
+            z-index: 30; /* 确保在文字之上 */
+            flex-shrink: 0; /* 防止被压缩 */
             height: 120px;
             background-color: #E3E8FF; /* 默认浅色背景 */
             background-size: 200% 100%;
@@ -185,6 +190,9 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); /* 增加一点阴影与下方文字区分 */
         }
 
         /* 缩小版中心圆环 */
@@ -271,11 +279,22 @@
 
         /* 下方文字区域 */
         .agent-text-area {
-            padding: 12px 16px;
+            padding: 16px;
             background: white;
             color: #333;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
             min-height: 40px;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            /* 取消了 overflow-y: auto，不再进行内部滚动 */
+        }
+
+        /* 响应文字容器 */
+        .response-text {
+            white-space: pre-wrap; /* 保留换行符，且自动换行 */
+            word-wrap: break-word;
+            margin: 0;
         }
 
         /* 加载状态文字样式 */
@@ -381,7 +400,7 @@
         <main class="chat-history" id="chat-history">
             <!-- 初始欢迎语 -->
             <div class="message agent">
-                <img src="downloaded-imag1e.png" alt="agent" class="chat-avatar" />
+                <img src="downloaded-imag1e-opt.png" alt="agent" class="chat-avatar" />
                 <div class="message-content-wrapper">
                     <div class="chat-name">AI 旅行助手</div>
                     <div class="bubble">你好！我是你的专属旅行管家。告诉我你想去哪里，或者想了解什么样的旅行方案？</div>
@@ -397,7 +416,7 @@
 
     <!-- 隐藏的模板：智能体动态组件 -->
     <template id="agent-widget-template">
-        <img src="downloaded-imag1e.png" alt="agent" class="chat-avatar agent-dynamic-avatar" />
+        <img src="downloaded-imag1e-opt.png" alt="agent" class="chat-avatar agent-dynamic-avatar" />
         <div class="message-content-wrapper" style="width: 100%;">
             <div class="chat-name agent-dynamic-name">AI 旅行助手</div>
             <div class="agent-visual-container" style="display: block;">
@@ -427,13 +446,13 @@
     </template>
 
     <script>
-        // 头像数据源（修改为浅色系背景）
+        // 头像数据源（修改为浅色系背景并使用优化后的图片）
         const avatarData = [
-            { type: 0, bg: '#E3E8FF', message: '黄小西正在思考中', src: 'downloaded-imag1e.png' }, // 浅蓝紫
-            { type: 1, bg: '#E0F4EE', message: '旅行记录官正在翻找合适的照片', src: 'downloaded-image (1).png' }, // 浅绿
-            { type: 2, bg: '#F2E8F7', message: '旅居管家正在帮您畅想', src: 'downloaded-image (2).png' }, // 浅紫
-            { type: 3, bg: '#FDECE8', message: '旅行规划小助手正在查资料', src: 'downloaded-image (3).png' }, // 浅珊瑚红
-            { type: 4, bg: '#FDF2E3', message: '订购助手正在帮您查看最优惠的商品', src: 'downloaded-image (4).png' }  // 浅橙黄
+            { type: 0, bg: '#E3E8FF', message: '黄小西正在思考中', src: 'downloaded-imag1e-opt.png' }, // 浅蓝紫
+            { type: 1, bg: '#E0F4EE', message: '旅行记录官正在翻找合适的照片', src: 'downloaded-image-1-opt.png' }, // 浅绿
+            { type: 2, bg: '#F2E8F7', message: '旅居管家正在帮您畅想', src: 'downloaded-image-2-opt.png' }, // 浅紫
+            { type: 3, bg: '#FDECE8', message: '旅行规划小助手正在查资料', src: 'downloaded-image-3-opt.png' }, // 浅珊瑚红
+            { type: 4, bg: '#FDF2E3', message: '订购助手正在帮您查看最优惠的商品', src: 'downloaded-image-4-opt.png' }  // 浅橙黄
         ];
         const items = [...avatarData, ...avatarData]; // 翻倍实现无缝循环
 
@@ -623,15 +642,50 @@
                 responseTextDiv.style.display = 'block';
                 responseTextDiv.classList.add('typing-cursor');
                 
-                // 4. 模拟流式输出打字效果
-                const mockAnswer = `根据您的要求，我为您找到了非常合适的方案！我们推荐去三亚湾感受椰梦长廊，去亚龙湾体验顶级沙滩水质，此外蜈支洲岛的潜水也是绝佳选择。`;
+                // 4. 模拟流式输出打字效果（增加极长的文本量以超过屏幕）
+                const mockAnswer = `根据您的要求，我为您找到了非常合适的方案！
+
+三亚是一个非常适合度假的城市，这里有温暖的阳光、清澈的海水和柔软的沙滩。为了让您的旅行体验达到最佳，我为您整理了一份详尽的五天四夜旅行规划：
+
+【第一天：抵达与初见】
+- 上午：抵达三亚凤凰国际机场，专车接机前往酒店办理入住。建议选择三亚湾附近的酒店，交通便利且性价比高。
+- 下午：在酒店稍作休息后，前往“椰梦长廊”漫步。这里有绵延二十公里的椰林画廊，是拍照打卡的绝佳地点。
+- 傍晚：在海边欣赏绝美的海上日落，看着夕阳染红整片天空。
+- 晚上：前往第一市场，这里是三亚最著名的海鲜加工市场。您可以亲自挑选生猛海鲜，体验讨价还价的乐趣，然后找一家加工店大快朵颐。
+
+【第二天：拥抱大海】
+- 全天：前往亚龙湾。这里被誉为“天下第一湾”，拥有三亚最顶级的沙滩和水质。这里的沙子洁白细腻，海水清澈见底，非常适合游泳和各项水上运动。
+- 中午：在亚龙湾附近的餐厅享用正宗的海南菜，如文昌鸡、加积鸭等。
+- 下午：可以体验香蕉船、摩托艇等刺激的水上项目，或者在沙滩椅上享受慵懒的午后时光。
+- 晚上：前往亚龙湾百花谷商业街，这里有各种特色小吃和手工艺品，是体验当地夜生活的好去处。
+
+【第三天：探索海底世界】
+- 全天：乘船前往蜈支洲岛。那里的海水能见度极高，被称为“中国版马尔代夫”，是潜水爱好者的天堂。
+- 上午：参加深潜或半潜项目，与色彩斑斓的珊瑚和热带鱼亲密接触。
+- 下午：环岛游览，参观情人桥、观日岩等著名景点，感受海岛的独特魅力。
+
+【第四天：热带雨林探秘】
+- 全天：前往呀诺达雨林文化旅游区，体验热带雨林的神秘与奇妙。
+- 体验高空滑索、悬崖秋千等刺激项目，感受穿梭在雨林上空的快感。
+
+【第五天：免税购物与返程】
+- 上午：前往三亚国际免税城，这里是全球最大的单体免税店，各种国际大牌琳琅满目，是购物狂的购物天堂。
+- 下午：根据航班时间，提前前往机场，结束愉快的三亚之旅。
+
+此外，我还为您精选了一些沿途的特色美食和网红打卡地。您可以看看上面这些推荐的景点卡片，如果有感兴趣的，我们可以进一步详细规划。`;
                 let charIndex = 0;
                 const typingTimer = setInterval(() => {
                     responseTextDiv.innerText = mockAnswer.substring(0, charIndex);
                     charIndex++;
-                    scrollToBottom();
-
-                        // --- 状态 3: COMPLETED（回答完毕，进入卡片推演过渡） ---
+                    
+                    // 移除自动滚动，让用户自己决定是否向下滑动查看
+                    // const textArea = msgDiv.querySelector('.agent-text-area');
+                    // if (textArea) {
+                    //     textArea.scrollTop = textArea.scrollHeight;
+                    // }
+                    // scrollToBottom(); 
+                    
+                    // --- 状态 3: COMPLETED（回答完毕，进入卡片推演过渡） ---
                     if (charIndex > mockAnswer.length) {
                         clearInterval(typingTimer);
                         responseTextDiv.classList.remove('typing-cursor');
